@@ -1,8 +1,6 @@
 FROM alpine:latest AS builder
 
-WORKDIR /usr/local/src
-COPY . .
-
+# system dependencies
 RUN apk add --no-cache \
     protobuf \
     protobuf-dev \
@@ -11,13 +9,26 @@ RUN apk add --no-cache \
     go \
     libcap
 
-RUN go install google.golang.org/protobuf/cmd/protoc-gen-go@latest &&\
-    go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest &&\
-    go install github.com/pressly/goose/v3/cmd/goose@latest &&\
-    PATH="$PATH:$(go env GOPATH)/bin" make proto &&\
-    go build -o lunar-tear ./cmd/lunar-tear &&\
+ENV GOPATH=/root/go
+ENV PATH="/root/go/bin:$PATH"
+WORKDIR /usr/local/src
+
+# code gen
+RUN go install google.golang.org/protobuf/cmd/protoc-gen-go@latest && \
+    go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest && \
+    go install github.com/pressly/goose/v3/cmd/goose@latest
+
+# app dependencies
+COPY go.mod go.sum ./
+RUN go mod download
+
+# build
+COPY . .
+RUN make proto && \
+    go build -o lunar-tear ./cmd/lunar-tear && \
     setcap cap_net_bind_service=+ep ./lunar-tear
 
+# runner
 FROM alpine:latest
 
 WORKDIR /opt/lunar-tear
