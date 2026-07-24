@@ -21,11 +21,16 @@ import (
 func main() {
 	listen := flag.String("listen", "0.0.0.0:8080", "local bind address (host:port)")
 	publicAddr := flag.String("public-addr", "127.0.0.1:8080", "externally-reachable host:port used for list.bin URL rewriting")
+	publicScheme := flag.String("public-scheme", "http", "scheme clients use to reach the CDN: http or https")
 	assetsDir := flag.String("assets-dir", ".", "root directory containing the assets/ tree")
 	flag.Parse()
 
-	// Build resourcesBaseURL from public-addr (must be exactly 43 chars to fit in list.bin protobuf).
-	prefix := "http://" + *publicAddr + "/"
+	if *publicScheme != "http" && *publicScheme != "https" {
+		log.Fatalf("--public-scheme must be \"http\" or \"https\", got %q", *publicScheme)
+	}
+
+	// Build resourcesBaseURL from scheme+public-addr (must be exactly 43 chars to fit in list.bin protobuf).
+	prefix := *publicScheme + "://" + *publicAddr + "/"
 	padLen := 43 - len(prefix)
 	resourcesBaseURL := ""
 	if padLen < 1 {
@@ -50,7 +55,7 @@ func main() {
 		log.Fatalf("failed to listen on %s: %v", *listen, err)
 	}
 	log.Printf("Octo CDN listening on %s (HTTP/1.1 + h2c)", lis.Addr())
-	log.Printf("public address: %s", *publicAddr)
+	log.Printf("public address: %s://%s", *publicScheme, *publicAddr)
 	if *assetsDir != "." {
 		log.Printf("assets directory: %s", *assetsDir)
 	}
