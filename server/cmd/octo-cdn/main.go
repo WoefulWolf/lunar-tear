@@ -23,6 +23,8 @@ func main() {
 	publicAddr := flag.String("public-addr", "127.0.0.1:8080", "externally-reachable host:port used for list.bin URL rewriting")
 	publicScheme := flag.String("public-scheme", "http", "scheme clients use to reach the CDN: http or https")
 	assetsDir := flag.String("assets-dir", ".", "root directory containing the assets/ tree")
+	tlsCert := flag.String("tls-cert", "", "TLS certificate")
+	tlsKey := flag.String("tls-key", "", "TLS key")
 	flag.Parse()
 
 	if *publicScheme != "http" && *publicScheme != "https" {
@@ -40,14 +42,19 @@ func main() {
 	}
 
 	octoServer := service.NewOctoHTTPServer(resourcesBaseURL, *assetsDir)
-	h2s := &http2.Server{}
-	handler := h2c.NewHandler(octoServer.Handler(), h2s)
-
-	srv := &http.Server{
-		Addr:    *listen,
-		Handler: handler,
+	useTLS := *tlsCert != "" && *tlsKey != ""
+	if useTLS && *publicScheme == "http" {
+		log.Printf("[config] serving TLS but --public-scheme is http; clients will be told to use http URLs. Set --public-scheme=https.")
 	}
-	http2.ConfigureServer(srv, h2s)
+
+	srv := &http.Server{Addr: *listen}
+	if useTLS {
+		srv.Handler = octoServer.Handler()
+	} else {
+		h2s := &http2.Server{}
+		srv.Handler = h2c.NewHandler(octoServer.Handler(), h2s)
+		http2.ConfigureServer(srv, h2s)
+	}
 
 	// Resolve actual listen address for logging (useful when port is 0).
 	lis, err := net.Listen("tcp", *listen)
@@ -64,8 +71,14 @@ func main() {
 	defer stop()
 
 	go func() {
-		if err := srv.Serve(lis); err != nil && err != http.ErrServerClosed {
-			fmt.Fprintf(os.Stderr, "HTTP server error: %v\n", err)
+		var serveErr error
+		if useTLS {
+			serveErr = srv.ServeTLS(lis, *tlsCert, *tlsKey)
+		} else {
+			serveErr = srv.Serve(lis)
+		}
+		if serveErr != nil && serveErr != http.ErrServerClosed {
+			fmt.Fprintf(os.Stderr, "HTTP server error: %v\n", serveErr)
 			os.Exit(1)
 		}
 	}()

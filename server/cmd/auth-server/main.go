@@ -18,6 +18,8 @@ func main() {
 	dbPath := flag.String("db", "db/auth.db", "SQLite database path for auth users")
 	secret := flag.String("secret", "", "HMAC secret for tokens (auto-generated if empty)")
 	noRegister := flag.Bool("no-register", false, "Disallow new account registrations for clients, when present. Default = false")
+	tlsCert := flag.String("tls-cert", "", "TLS certificate")
+	tlsKey := flag.String("tls-key", "", "TLS key")
 	flag.Parse()
 
 	hmacSecret := []byte(*secret)
@@ -50,7 +52,12 @@ func main() {
 	mux.HandleFunc("/check-username", h.HandleCheckUsername)
 
 	log.Printf("auth server listening on %s", *listen)
-	if err := http.ListenAndServe(*listen, mux); err != nil {
+	if *tlsCert != "" && *tlsKey != "" {
+		err = http.ListenAndServeTLS(*listen, *tlsCert, *tlsKey, mux)
+	} else {
+		err = http.ListenAndServe(*listen, mux)
+	}
+	if err != nil {
 		log.Fatalf("listen: %v", err)
 	}
 }

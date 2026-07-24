@@ -12,6 +12,7 @@ import (
 	"lunar-tear/server/internal/store"
 
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/reflection"
 )
 
@@ -40,6 +41,8 @@ func startGRPC(
 	},
 	holder *runtime.Holder,
 	noRegister bool,
+	tlsCert string,
+	tlsKey string,
 ) *grpc.Server {
 	lis, err := net.Listen("tcp", listenAddr)
 	if err != nil {
@@ -48,10 +51,21 @@ func startGRPC(
 	lis = loggingListener{Listener: lis}
 
 	diffInterceptor := interceptor.NewDiffInterceptor(userStore, userStore)
-	grpcServer := grpc.NewServer(
+
+	opts := []grpc.ServerOption{
 		grpc.ChainUnaryInterceptor(interceptor.Platform, interceptor.Logging, diffInterceptor, interceptor.TimeSync),
 		grpc.UnknownServiceHandler(interceptor.UnknownService),
-	)
+	}
+
+	if tlsCert != "" && tlsKey != "" {
+		creds, err := credentials.NewServerTLSFromFile(tlsCert, tlsKey)
+		if err != nil {
+			log.Fatalf("gRPC TLS: %v", err)
+		}
+		opts = append(opts, grpc.Creds(creds))
+	}
+
+	grpcServer := grpc.NewServer(opts...)
 
 	registerServices(grpcServer, publicAddr, octoURL, authURL, userStore, holder, noRegister)
 
