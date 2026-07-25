@@ -3,6 +3,7 @@ package service
 import (
 	"bytes"
 	"crypto/md5"
+	"encoding/binary"
 	"encoding/hex"
 	"io"
 	"log"
@@ -443,10 +444,39 @@ func (s *OctoHTTPServer) serveListBin(w http.ResponseWriter, filePath string) {
 			}
 		}
 	}
+	// Make Database.revision (field 1) track the file mtime so a changed list.bin
+	// reads as a NEW revision to the client
+	if info, err := os.Stat(filePath); err == nil {
+		if rewritten, ok := rewriteListRevision(data, int32(info.ModTime().Unix())); ok {
+			data = rewritten
+		}
+	}
 	w.Header().Set("Content-Type", "application/x-protobuf")
 	w.Header().Set("Content-Length", strconv.Itoa(len(data)))
 	w.WriteHeader(http.StatusOK)
 	w.Write(data)
+}
+
+// rewriteListRevision replaces Database.revision
+func rewriteListRevision(data []byte, newRev int32) ([]byte, bool) {
+	if len(data) < 2 || data[0] != 0x08 { // 0x08 = field 1, wire type 0 (varint)
+		return data, false
+	}
+	i := 1
+	for i < len(data) && i <= 10 && data[i]&0x80 != 0 {
+		i++
+	}
+	if i >= len(data) {
+		return data, false
+	}
+	i++ // step past the terminating varint byte
+	var buf [binary.MaxVarintLen64]byte
+	n := binary.PutUvarint(buf[:], uint64(uint32(newRev)))
+	out := make([]byte, 0, 1+n+len(data)-i)
+	out = append(out, 0x08)
+	out = append(out, buf[:n]...)
+	out = append(out, data[i:]...)
+	return out, true
 }
 
 // serveDatabaseBinE serves the master data binary. The URL's {version} segment
