@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Event Schedule</title>
+<style>
+  /* Transparent ground so the game's own panel shows through; every separator is
+     therefore alpha-based (solid dark hairlines would disappear against it). Content
+     dissolves at the top/bottom edges rather than hard-clipping at the app insets. */
+  *    { box-sizing:border-box; }
+  html, body { height:100%; }
+  body { margin:0; font-family:"Noto Sans",sans-serif; background:transparent;
+         color:#d4cfc6; -webkit-text-size-adjust:100%; }
+  /* Nothing is pinned — header, list and footer all scroll and simply dissolve at the
+     top and bottom edges, so no vertical space is spent on fixed chrome or borders. */
+  .pane{ height:100%; display:flex; }
+  .scroll{ flex:1; min-height:0; overflow-y:auto;
+     -webkit-mask-image:linear-gradient(to bottom,transparent 0,#000 15px,#000 calc(100% - 15px),transparent 100%);
+             mask-image:linear-gradient(to bottom,transparent 0,#000 15px,#000 calc(100% - 15px),transparent 100%); }
+  .wrap{ max-width:980px; margin:0 auto; padding:17px 20px 19px; }
+  .hd  { display:flex; align-items:baseline; justify-content:center;
+         gap:13px; padding-bottom:9px; }
+  h1   { font-size:1em; letter-spacing:.24em; color:#e8e0d0; margin:0; font-weight:400;
+         text-shadow:0 1px 3px rgba(0,0,0,.65); }
+  .sub { font-size:.58em; letter-spacing:.18em; color:#8d8579; text-transform:uppercase; }
+  h2   { font-size:.58em; letter-spacing:.2em; color:#c9ae74; font-weight:400;
+         text-transform:uppercase; margin:11px 0 3px; display:flex; align-items:center; gap:9px; }
+  .hd + h2 { margin-top:0; }
+  h2::after { content:""; flex:1; border-top:1px solid rgba(201,174,116,.28); }
+  /* thin rows: name flexes, timing pinned right so the wide viewport is used */
+  .row { display:flex; align-items:baseline; gap:9px; padding:2px 0;
+         border-bottom:1px solid rgba(232,224,208,.08); }
+  .tag { flex:none; width:52px; text-align:center; font-size:.48em; letter-spacing:.1em;
+         padding:1px 0; border-radius:2px; text-transform:uppercase; border:1px solid; }
+  .summon { color:#d8b878; border-color:rgba(216,184,120,.42); }
+  .event  { color:#9dbadb; border-color:rgba(157,186,219,.4); }
+  .mission{ color:#a9bd97; border-color:rgba(169,189,151,.4); }
+  .nm  { flex:1; min-width:0; font-size:.72em; line-height:1.25; color:#e4dfd5;
+         white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+         text-shadow:0 1px 2px rgba(0,0,0,.55); }
+  .when{ flex:none; font-size:.58em; color:#9a9186; white-space:nowrap;
+         font-variant-numeric:tabular-nums; text-shadow:0 1px 2px rgba(0,0,0,.55); }
+  .when .ar { color:#6d665d; padding:0 3px; }
+  .when .en { color:#847c72; }
+  .empty{ font-size:.66em; color:#7d766c; padding:4px 0; font-style:italic; }
+  .foot{ margin-top:11px; text-align:center; font-size:.5em;
+         color:#6b655c; line-height:1.6; }
+</style>
+</head>
+<body><div class="pane"><div class="scroll"><div class="wrap">
+  <div class="hd"><h1>LUNAR TEAR</h1><span class="sub">Event Schedule</span></div>
+  <h2>Now Running</h2>
+{{- if not .Running}}
+  <div class="empty">Nothing running right now.</div>
+{{- end}}
+{{- range .Running}}
+  <div class="row"><span class="tag {{.Kind}}">{{.Label}}</span><span class="nm">{{.Name}}</span><span class="when" data-e="{{.End}}"><span class="en">ends {{.UTCEnd}}</span></span></div>
+{{- end}}
+  <h2>Upcoming &middot; Next {{.UpcomingDays}} Days</h2>
+{{- if not .Upcoming}}
+  <div class="empty">Nothing scheduled in the next week.</div>
+{{- end}}
+{{- range .Upcoming}}
+  <div class="row"><span class="tag {{.Kind}}">{{.Label}}</span><span class="nm">{{.Name}}</span><span class="when" data-s="{{.Start}}" data-e="{{.End}}">{{.UTCStart}}<span class="ar">&rarr;</span><span class="en">{{.UTCEnd}}</span></span></div>
+{{- end}}
+  <div class="foot">Schedule rotates automatically &middot; times shown in your device's timezone &middot; &copy; SQUARE ENIX / Applibot</div>
+</div></div></div>
+<script>
+(function(){try{
+  var now = new Date();
+  var pad = function(n){ return (n < 10 ? "0" : "") + n; };
+  var hm  = function(d){ return pad(d.getHours()) + ":" + pad(d.getMinutes()); };
+  var midnight = function(d){ return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime(); };
+  // calendar-relative wording, in the device's own timezone
+  var dayWord = function(d){
+    var n = Math.round((midnight(d) - midnight(now)) / 86400000);
+    if (n === 0)  return "today";
+    if (n === 1)  return "tomorrow";
+    if (n === -1) return "yesterday";
+    if (n > 1 && n < 7) return d.toLocaleDateString([], {weekday:"long"});
+    return d.toLocaleDateString([], {day:"numeric", month:"short"});
+  };
+  var at = function(d){ return dayWord(d) + " at " + hm(d); };
+  var els = document.querySelectorAll(".when[data-e]");
+  for (var i = 0; i < els.length; i++){
+    var w = els[i], sRaw = w.getAttribute("data-s"), end = new Date(+w.getAttribute("data-e"));
+    if (sRaw){
+      var start = new Date(+sRaw);
+      // same-day windows don't repeat the day on the right-hand side
+      var tail = midnight(start) === midnight(end) ? hm(end) : at(end);
+      w.innerHTML = at(start) + '<span class="ar">&rarr;</span><span class="en">' + tail + '</span>';
+    } else {
+      w.innerHTML = '<span class="en">ends ' + at(end) + '</span>';
+    }
+  }
+}catch(e){}})();
+</script>
+</body>
+</html>

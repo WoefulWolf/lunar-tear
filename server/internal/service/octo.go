@@ -12,6 +12,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 )
 
 const termsVersionMarker = "###123###"
@@ -230,11 +231,21 @@ func (s *OctoHTTPServer) handleAll(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// In-game information / news page
+	// In-game information / news page — renders the live event calendar the rotator
+	// publishes; falls back to the static info page if it isn't there or won't render.
 	if strings.Contains(path, "/information") {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		w.Header().Set("Cache-Control", "no-cache")
 		w.WriteHeader(200)
-		w.Write([]byte(informationPage))
+		if cal, err := s.loadCalendar(); err != nil {
+			log.Printf("[HTTP] /information: no calendar (%v) — serving static page", err)
+			w.Write([]byte(informationPage))
+		} else if page, err := s.renderCalendarPage(cal, time.Now()); err != nil {
+			log.Printf("[HTTP] /information: calendar render failed (%v) — serving static page", err)
+			w.Write([]byte(informationPage))
+		} else {
+			w.Write([]byte(page))
+		}
 		return
 	}
 
