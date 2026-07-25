@@ -1,0 +1,25 @@
+{
+  "_comment": [
+    "Rows appended to master-data tables. This is content the shipped game data",
+    "doesn't have, kept here so adding more needs no rebuild.",
+    "",
+    "These four rows define the Original Summon (gachaId 900001) and its medal",
+    "item. The client reads banner config from m_mom_banner, so without that row",
+    "its summon flow hangs. 1546300800000 = 2019-01-01Z, 1924991999000 = end of",
+    "2030 (effectively permanent)."
+  ],
+  "appendRows": {
+    "m_gacha_medal": [
+      [900001, 200, 900001, 900001, 1924991999000, 1]
+    ],
+    "m_consumable_item": [
+      [900001, 120, 7, 0, 900001, "", 118, 7]
+    ],
+    "m_consumable_item_term": [
+      [900001, 1546300800000, 1924991999000]
+    ],
+    "m_mom_banner": [
+      [9000001, 1, 1, 900001, "limited_01", false, 1546300800000, 1924991999000, 0]
+    ]
+  }
+}
