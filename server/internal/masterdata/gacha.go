@@ -2,13 +2,40 @@ package masterdata
 
 import (
 	"fmt"
+	"log"
+	"os"
 	"sort"
+	"strconv"
 	"strings"
 
 	"lunar-tear/server/internal/model"
 	"lunar-tear/server/internal/store"
 	"lunar-tear/server/internal/utils"
 )
+
+var (
+	premiumSinglePullPrice = envPrice("LUNAR_GACHA_SINGLE_PULL_PRICE", model.PremiumSinglePullPrice)
+	premiumMultiPullPrice  = envPrice("LUNAR_GACHA_MULTI_PULL_PRICE", model.PremiumMultiPullPrice)
+	stepUpStep1Cost        = envPrice("LUNAR_GACHA_STEPUP1_PRICE", model.StepUpStep1Cost)
+	stepUpStep3Cost        = envPrice("LUNAR_GACHA_STEPUP3_PRICE", model.StepUpStep3Cost)
+	stepUpStep5Cost        = envPrice("LUNAR_GACHA_STEPUP5_PRICE", model.StepUpStep5Cost)
+)
+
+func envPrice(key string, def int32) int32 {
+	v := strings.TrimSpace(os.Getenv(key))
+	if v == "" {
+		return def
+	}
+	n, err := strconv.Atoi(v)
+	if err != nil || n < 0 {
+		log.Printf("[gacha] %s=%q is not a valid price, using %d", key, v, def)
+		return def
+	}
+	if int32(n) != def {
+		log.Printf("[gacha] %s overriding price %d -> %d", key, def, n)
+	}
+	return int32(n)
+}
 
 type GachaMedalInfo struct {
 	GachaMedalId        int32
@@ -266,14 +293,14 @@ func buildPremiumBasicPricePhases(gachaId int32) []store.GachaPricePhaseEntry {
 		{
 			PhaseId:      gachaId*model.PhaseIdMultiplier + 1,
 			PriceType:    model.PriceTypeGem,
-			Price:        model.PremiumSinglePullPrice,
-			RegularPrice: model.PremiumSinglePullPrice,
+			Price:        premiumSinglePullPrice,
+			RegularPrice: model.PremiumSinglePullPrice, // strike-through: always the shipped price
 			DrawCount:    1,
 		},
 		{
 			PhaseId:        gachaId*model.PhaseIdMultiplier + 2,
 			PriceType:      model.PriceTypeGem,
-			Price:          model.PremiumMultiPullPrice,
+			Price:          premiumMultiPullPrice,
 			RegularPrice:   model.PremiumMultiPullPrice,
 			DrawCount:      model.PremiumMultiPullCount,
 			FixedRarityMin: model.RaritySRare,
@@ -291,7 +318,7 @@ func buildPremiumBasicPricePhases(gachaId int32) []store.GachaPricePhaseEntry {
 }
 
 func buildStepUpPricePhases(gachaId int32, totalSteps int) []store.GachaPricePhaseEntry {
-	stepCosts := []int32{model.StepUpStep1Cost, model.StepUpFreeCost, model.StepUpStep3Cost, model.StepUpFreeCost, model.StepUpStep5Cost}
+	stepCosts := []int32{stepUpStep1Cost, model.StepUpFreeCost, stepUpStep3Cost, model.StepUpFreeCost, stepUpStep5Cost}
 	stepCosts = stepCosts[:min(totalSteps, len(stepCosts))]
 
 	var phases []store.GachaPricePhaseEntry
