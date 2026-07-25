@@ -136,6 +136,14 @@ func writeUserState(tx *sql.Tx, uid int64, u *store.UserState) error {
 		uid, u.ShopReplaceable.LineupUpdateCount, u.ShopReplaceable.LatestLineupUpdateDatetime, u.ShopReplaceable.LatestVersion); err != nil {
 		return err
 	}
+	if err := exec(`INSERT INTO user_lifetime_counters (user_id, summon_count, purchase_count) VALUES (?,?,?)`,
+		uid, u.LifetimeCounters.SummonCount, u.LifetimeCounters.PurchaseCount); err != nil {
+		return err
+	}
+	if err := exec(`INSERT INTO user_daily_mission (user_id, last_reset_date, clear_baseline, summon_baseline, purchase_baseline) VALUES (?,?,?,?,?)`,
+		uid, u.DailyMission.LastResetDate, u.DailyMission.ClearBaseline, u.DailyMission.SummonBaseline, u.DailyMission.PurchaseBaseline); err != nil {
+		return err
+	}
 
 	var obtainItemId, obtainCount sql.NullInt64
 	if u.Gacha.ConvertedGachaMedal.ObtainPossession != nil {
@@ -711,6 +719,18 @@ func diffAndSave(tx *sql.Tx, uid int64, before, after *store.UserState) error {
 	if before.ShopReplaceable != after.ShopReplaceable {
 		if err := exec(`UPDATE user_shop_replaceable SET lineup_update_count=?, latest_lineup_update_datetime=?, latest_version=? WHERE user_id=?`,
 			after.ShopReplaceable.LineupUpdateCount, after.ShopReplaceable.LatestLineupUpdateDatetime, after.ShopReplaceable.LatestVersion, uid); err != nil {
+			return err
+		}
+	}
+	if before.LifetimeCounters != after.LifetimeCounters {
+		if err := exec(`UPDATE user_lifetime_counters SET summon_count=?, purchase_count=? WHERE user_id=?`,
+			after.LifetimeCounters.SummonCount, after.LifetimeCounters.PurchaseCount, uid); err != nil {
+			return err
+		}
+	}
+	if before.DailyMission != after.DailyMission {
+		if err := exec(`UPDATE user_daily_mission SET last_reset_date=?, clear_baseline=?, summon_baseline=?, purchase_baseline=? WHERE user_id=?`,
+			after.DailyMission.LastResetDate, after.DailyMission.ClearBaseline, after.DailyMission.SummonBaseline, after.DailyMission.PurchaseBaseline, uid); err != nil {
 			return err
 		}
 	}

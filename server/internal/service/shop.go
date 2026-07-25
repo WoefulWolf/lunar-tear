@@ -66,6 +66,7 @@ func (s *ShopServiceServer) Buy(ctx context.Context, req *pb.BuyRequest) (*pb.Bu
 			si.LatestBoughtCountChangedDatetime = nowMillis
 			si.LatestVersion = nowMillis
 			user.ShopItems[shopItemId] = si
+			user.LifetimeCounters.PurchaseCount += qty
 		}
 	})
 	if err != nil {

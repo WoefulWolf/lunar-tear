@@ -233,6 +233,15 @@ func load1to1(db *sql.DB, uid int64, u *store.UserState) {
 		Scan(&u.ShopReplaceable.LineupUpdateCount, &u.ShopReplaceable.LatestLineupUpdateDatetime,
 			&u.ShopReplaceable.LatestVersion)
 
+	_ = db.QueryRow(`SELECT summon_count, purchase_count
+    FROM user_lifetime_counters WHERE user_id=?`, uid).
+		Scan(&u.LifetimeCounters.SummonCount, &u.LifetimeCounters.PurchaseCount)
+
+	_ = db.QueryRow(`SELECT last_reset_date, clear_baseline, summon_baseline, purchase_baseline
+    FROM user_daily_mission WHERE user_id=?`, uid).
+		Scan(&u.DailyMission.LastResetDate, &u.DailyMission.ClearBaseline,
+			&u.DailyMission.SummonBaseline, &u.DailyMission.PurchaseBaseline)
+
 	var rewardAvail int
 	var obtainItemId, obtainCount sql.NullInt64
 	_ = db.QueryRow(`SELECT reward_available, todays_current_draw_count, daily_max_count,

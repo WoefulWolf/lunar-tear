@@ -68,6 +68,8 @@ func (h *GachaHandler) HandleDraw(
 		}
 	}
 
+	user.LifetimeCounters.SummonCount++
+
 	drawCount := int(phase.DrawCount * execCount)
 	nowMillis := gametime.NowMillis()
 

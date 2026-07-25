@@ -7,6 +7,8 @@ import (
 	"os"
 
 	pb "lunar-tear/server/gen/proto"
+	"lunar-tear/server/internal/gametime"
+	"lunar-tear/server/internal/masterdata"
 	"lunar-tear/server/internal/store"
 	"lunar-tear/server/internal/userdata"
 
@@ -64,8 +66,18 @@ func (s *DataServiceServer) GetUserData(ctx context.Context, req *pb.UserDataGet
 		return nil, fmt.Errorf("snapshot user: %w", err)
 	}
 
-	defaults := userdata.FullClientTableMap(user)
-	result := userdata.SelectTables(defaults, req.TableName)
+	now := gametime.NowMillis()
+	catalog := masterdata.MissionCatalogCached()
+	if masterdata.DailyResetDue(user, now) {
+		user, err = s.users.UpdateUser(userId, func(u *store.UserState) {
+			masterdata.ApplyDailyReset(u, catalog, now)
+		})
+		if err != nil {
+			return nil, fmt.Errorf("daily reset: %w", err)
+		}
+	}
+
+	result := userdata.ProjectTables(user, req.TableName)
 	return &pb.UserDataGetResponse{
 		UserDataJson: result,
 	}, nil

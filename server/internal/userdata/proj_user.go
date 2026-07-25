@@ -215,6 +215,34 @@ func sortedMissionRecords(user store.UserState) []map[string]any {
 		}
 	}
 
+	missionCat := masterdata.MissionCatalogCached()
+	nowMillis := gametime.NowMillis()
+	missionCtx := masterdata.BuildMissionEvalContext(user)
+	for _, def := range missionCat.ById {
+		if !missionCat.TermActive(def.TermId, nowMillis) {
+			continue
+		}
+		if existing, ok := missions[def.MissionId]; ok &&
+			existing.MissionProgressStatusType >= int32(model.MissionProgressStatusTypeRewardReceived) {
+			continue
+		}
+		progress, status := masterdata.EvaluateMissionCtx(missionCtx, def)
+		if progress == 0 && status < int32(model.MissionProgressStatusTypeClear) {
+			continue
+		}
+		rec := store.UserMissionState{
+			MissionId:                 def.MissionId,
+			StartDatetime:             user.GameStartDatetime,
+			ProgressValue:             progress,
+			MissionProgressStatusType: status,
+			LatestVersion:             user.GameStartDatetime,
+		}
+		if status >= int32(model.MissionProgressStatusTypeClear) {
+			rec.ClearDatetime = user.GameStartDatetime
+		}
+		missions[def.MissionId] = rec
+	}
+
 	ids := make([]int, 0, len(missions))
 	for id := range missions {
 		ids = append(ids, int(id))

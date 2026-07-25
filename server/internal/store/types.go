@@ -47,6 +47,8 @@ type UserState struct {
 	SideStoryActiveProgress SideStoryActiveProgress
 	QuestLimitContentStatus map[int32]QuestLimitContentStatus
 
+	LifetimeCounters LifetimeCountersState
+
 	BigHuntProgress          BigHuntProgress
 	BigHuntMaxScores         map[int32]BigHuntMaxScore
 	BigHuntStatuses          map[int32]BigHuntStatus
@@ -73,6 +75,7 @@ type UserState struct {
 	Quests                   map[int32]UserQuestState
 	QuestMissions            map[QuestMissionKey]UserQuestMissionState
 	Missions                 map[int32]UserMissionState
+	DailyMission             DailyMissionState
 	WeaponStories            map[int32]WeaponStoryState
 	Gimmick                  GimmickState
 	CageOrnamentRewards      map[int32]CageOrnamentRewardState
@@ -632,6 +635,15 @@ type QuestLimitContentStatus struct {
 	LatestVersion               int64
 }
 
+type LifetimeCountersState struct {
+	SummonCount   int32
+	PurchaseCount int32
+}
+
+func (s LifetimeCountersState) Equal(other LifetimeCountersState) bool {
+	return s == other
+}
+
 type BigHuntProgress struct {
 	CurrentBigHuntBossQuestId int32
 	CurrentBigHuntQuestId     int32
@@ -786,6 +798,17 @@ type UserMissionState struct {
 	MissionProgressStatusType int32
 	ClearDatetime             int64
 	LatestVersion             int64
+}
+
+type DailyMissionState struct {
+	LastResetDate    int64 // 00:00-PST millis of the last reset
+	ClearBaseline    int32
+	SummonBaseline   int32
+	PurchaseBaseline int32
+}
+
+func (s DailyMissionState) Equal(other DailyMissionState) bool {
+	return s == other
 }
 
 type WeaponStoryState struct {

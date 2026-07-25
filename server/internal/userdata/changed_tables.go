@@ -119,7 +119,12 @@ func ChangedTables(before, after *store.UserState) []string {
 	if !mapsEqualStruct(before.Tutorials, after.Tutorials) {
 		add("IUserTutorialProgress")
 	}
-	if !mapsEqualStruct(before.Missions, after.Missions) {
+	if !mapsEqualStruct(before.Missions, after.Missions) ||
+		!mapsEqualStruct(before.Quests, after.Quests) ||
+		!mapsEqualStruct(before.ShopItems, after.ShopItems) ||
+		before.Profile.FavoriteCostumeId != after.Profile.FavoriteCostumeId ||
+		before.LifetimeCounters != after.LifetimeCounters ||
+		before.DailyMission != after.DailyMission {
 		add("IUserMission")
 	}
 	if !mapsEqualStruct(before.Characters, after.Characters) {
