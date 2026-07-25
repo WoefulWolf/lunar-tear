@@ -9,6 +9,7 @@ import (
 	pb "lunar-tear/server/gen/proto"
 	"lunar-tear/server/internal/gametime"
 	"lunar-tear/server/internal/masterdata"
+	"lunar-tear/server/internal/runtime"
 	"lunar-tear/server/internal/store"
 	"lunar-tear/server/internal/userdata"
 
@@ -29,10 +30,11 @@ type DataServiceServer struct {
 	pb.UnimplementedDataServiceServer
 	users    store.UserRepository
 	sessions store.SessionRepository
+	holder   *runtime.Holder
 }
 
-func NewDataServiceServer(users store.UserRepository, sessions store.SessionRepository) *DataServiceServer {
-	return &DataServiceServer{users: users, sessions: sessions}
+func NewDataServiceServer(users store.UserRepository, sessions store.SessionRepository, holder *runtime.Holder) *DataServiceServer {
+	return &DataServiceServer{users: users, sessions: sessions, holder: holder}
 }
 
 func (s *DataServiceServer) GetLatestMasterDataVersion(ctx context.Context, _ *emptypb.Empty) (*pb.MasterDataGetLatestVersionResponse, error) {
@@ -69,7 +71,11 @@ func (s *DataServiceServer) GetUserData(ctx context.Context, req *pb.UserDataGet
 	now := gametime.NowMillis()
 	catalog := masterdata.MissionCatalogCached()
 	if masterdata.DailyResetDue(user, now) {
+		itemShopPool := s.holder.Get().Shop.ItemShopPool
 		user, err = s.users.UpdateUser(userId, func(u *store.UserState) {
+			// Restock first: ApplyDailyReset stamps LastResetDate, which is what
+			// gates this whole block.
+			masterdata.ApplyShopDailyRestock(u, itemShopPool, now)
 			masterdata.ApplyDailyReset(u, catalog, now)
 		})
 		if err != nil {

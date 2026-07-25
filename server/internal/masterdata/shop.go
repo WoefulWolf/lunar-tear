@@ -5,6 +5,7 @@ import (
 	"sort"
 
 	"lunar-tear/server/internal/model"
+	"lunar-tear/server/internal/store"
 	"lunar-tear/server/internal/utils"
 )
 
@@ -21,6 +22,31 @@ type ShopCatalog struct {
 	LimitedStock      map[int32]int32              // stock id -> max count
 	ItemShopPool      []int32                      // shop item IDs for the replaceable item shop, sorted by cell sort order
 	ExchangeShopCells map[int32][]ExchangeShopCell // shopId -> sorted cells for exchange shops
+	ReplaceableGem    [][2]int32                   // sorted [lineupUpdateCountLowerLimit, necessaryGem] tiers for manual refresh
+}
+
+func (c *ShopCatalog) RefreshGemCost(count int32) int32 {
+	cost := int32(0)
+	for _, tier := range c.ReplaceableGem {
+		if tier[0] <= count {
+			cost = tier[1]
+		} else {
+			break
+		}
+	}
+	return cost
+}
+
+func ApplyShopDailyRestock(user *store.UserState, itemShopPool []int32, nowMillis int64) {
+	user.ShopReplaceable.LineupUpdateCount = 0
+	user.ShopReplaceable.LatestLineupUpdateDatetime = nowMillis
+	for _, itemId := range itemShopPool {
+		if si, ok := user.ShopItems[itemId]; ok {
+			si.BoughtCount = 0
+			si.LatestVersion = nowMillis
+			user.ShopItems[itemId] = si
+		}
+	}
 }
 
 func LoadShopCatalog() (*ShopCatalog, error) {
@@ -123,6 +149,15 @@ func LoadShopCatalog() (*ShopCatalog, error) {
 			catalog.ExchangeShopCells[s.ShopId] = sc
 		}
 	}
+
+	gemRows, err := utils.ReadTable[EntityMShopReplaceableGem]("m_shop_replaceable_gem")
+	if err != nil {
+		return nil, fmt.Errorf("load shop replaceable gem table: %w", err)
+	}
+	for _, row := range gemRows {
+		catalog.ReplaceableGem = append(catalog.ReplaceableGem, [2]int32{row.LineupUpdateCountLowerLimit, row.NecessaryGem})
+	}
+	sort.Slice(catalog.ReplaceableGem, func(i, j int) bool { return catalog.ReplaceableGem[i][0] < catalog.ReplaceableGem[j][0] })
 
 	return catalog, nil
 }

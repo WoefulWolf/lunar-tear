@@ -84,6 +84,7 @@ func (s *ShopServiceServer) RefreshUserData(ctx context.Context, req *pb.Refresh
 	userId := CurrentUserId(ctx, s.users, s.sessions)
 	nowMillis := gametime.NowMillis()
 
+	var refreshErr error
 	_, err := s.users.UpdateUser(userId, func(user *store.UserState) {
 		if len(user.ShopReplaceableLineup) == 0 && len(catalog.ItemShopPool) > 0 {
 			for i, itemId := range catalog.ItemShopPool {
@@ -96,7 +97,14 @@ func (s *ShopServiceServer) RefreshUserData(ctx context.Context, req *pb.Refresh
 			}
 		}
 		if req.IsGemUsed {
-			user.ShopReplaceable.LineupUpdateCount++
+			newCount := user.ShopReplaceable.LineupUpdateCount + 1
+			if cost := catalog.RefreshGemCost(newCount); cost > 0 {
+				if err := store.DeductPrice(user, model.PriceTypeGem, 0, cost); err != nil {
+					refreshErr = err
+					return
+				}
+			}
+			user.ShopReplaceable.LineupUpdateCount = newCount
 			user.ShopReplaceable.LatestLineupUpdateDatetime = nowMillis
 			for _, itemId := range catalog.ItemShopPool {
 				if si, ok := user.ShopItems[itemId]; ok {
@@ -109,6 +117,9 @@ func (s *ShopServiceServer) RefreshUserData(ctx context.Context, req *pb.Refresh
 	})
 	if err != nil {
 		return nil, fmt.Errorf("shop refresh: %w", err)
+	}
+	if refreshErr != nil {
+		return nil, fmt.Errorf("shop refresh: %w", refreshErr)
 	}
 
 	return &pb.RefreshResponse{}, nil
