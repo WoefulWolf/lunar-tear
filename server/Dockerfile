@@ -43,5 +43,5 @@ COPY --from=builder /usr/local/src/migrations ./migrations
 
 COPY entrypoint.sh .
 
-ENTRYPOINT /opt/lunar-tear/entrypoint.sh
+ENTRYPOINT ["/bin/sh", "/opt/lunar-tear/entrypoint.sh"]
 
