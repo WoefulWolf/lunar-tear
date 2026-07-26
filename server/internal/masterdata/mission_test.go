@@ -7,6 +7,7 @@ import (
 	"lunar-tear/server/internal/gametime"
 	"lunar-tear/server/internal/model"
 	"lunar-tear/server/internal/store"
+	"lunar-tear/server/internal/timeline"
 )
 
 func TestEvaluateMissionCtx(t *testing.T) {
@@ -143,7 +144,7 @@ func TestTermActive(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := cat.TermActive(tt.termId, tt.now); got != tt.want {
+			if got := cat.TermActive(tt.termId, timeline.ContentMillis(tt.now)); got != tt.want {
 				t.Errorf("TermActive(%d, %d) = %v, want %v", tt.termId, tt.now, got, tt.want)
 			}
 		})

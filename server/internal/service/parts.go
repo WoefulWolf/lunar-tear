@@ -13,6 +13,7 @@ import (
 	"lunar-tear/server/internal/model"
 	"lunar-tear/server/internal/runtime"
 	"lunar-tear/server/internal/store"
+	"lunar-tear/server/internal/timeline"
 )
 
 const partsMaxLevel = int32(15)
@@ -187,7 +188,7 @@ func (s *PartsServiceServer) Enhance(ctx context.Context, req *pb.PartsEnhanceRe
 			PartsId:      part.PartsId,
 			PartsGroupId: partDef.PartsGroupId,
 			Rarity:       model.RarityType(partDef.RarityType),
-		}, campaign.Filter{NowMillis: nowMillis, UserStatus: campaign.TargetUserStatusAll}).Apply(baseRate)
+		}, campaign.Filter{Now: timeline.NowFor(user.RegisterDatetime), UserStatus: campaign.TargetUserStatusAll}).Apply(baseRate)
 
 		if rand.Intn(1000) < int(successRate) {
 			part.Level++

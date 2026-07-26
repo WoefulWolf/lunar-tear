@@ -8,6 +8,7 @@ import (
 	"lunar-tear/server/internal/masterdata"
 	"lunar-tear/server/internal/model"
 	"lunar-tear/server/internal/store"
+	"lunar-tear/server/internal/timeline"
 	"lunar-tear/server/internal/utils"
 )
 
@@ -216,10 +217,10 @@ func sortedMissionRecords(user store.UserState) []map[string]any {
 	}
 
 	missionCat := masterdata.MissionCatalogCached()
-	nowMillis := gametime.NowMillis()
+	contentNow := timeline.NowFor(user.RegisterDatetime)
 	missionCtx := masterdata.BuildMissionEvalContext(user)
 	for _, def := range missionCat.ById {
-		if !missionCat.TermActive(def.TermId, nowMillis) {
+		if !missionCat.TermActive(def.TermId, contentNow) {
 			continue
 		}
 		if existing, ok := missions[def.MissionId]; ok &&

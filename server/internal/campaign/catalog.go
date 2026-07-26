@@ -156,14 +156,14 @@ func loadQuestRows() ([]questRow, error) {
 }
 
 func (r enhanceRow) isActive(f Filter) bool {
-	if f.NowMillis < r.startMillis || f.NowMillis > r.endMillis {
+	if int64(f.Now) < r.startMillis || int64(f.Now) > r.endMillis {
 		return false
 	}
 	return r.userStatus == TargetUserStatusAll || r.userStatus == f.UserStatus
 }
 
 func (r questRow) isActive(f Filter) bool {
-	if f.NowMillis < r.startMillis || f.NowMillis > r.endMillis {
+	if int64(f.Now) < r.startMillis || int64(f.Now) > r.endMillis {
 		return false
 	}
 	return r.userStatus == TargetUserStatusAll || r.userStatus == f.UserStatus

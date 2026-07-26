@@ -1,6 +1,9 @@
 package campaign
 
-import "lunar-tear/server/internal/model"
+import (
+	"lunar-tear/server/internal/model"
+	"lunar-tear/server/internal/timeline"
+)
 
 type EnhanceCampaignEffectType int32
 
@@ -71,7 +74,7 @@ const (
 )
 
 type Filter struct {
-	NowMillis  int64
+	Now        timeline.ContentMillis
 	UserStatus TargetUserStatusType
 }
 

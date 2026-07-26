@@ -16,6 +16,7 @@ import (
 	"lunar-tear/server/internal/model"
 	"lunar-tear/server/internal/runtime"
 	"lunar-tear/server/internal/store"
+	"lunar-tear/server/internal/timeline"
 )
 
 type CostumeServiceServer struct {
@@ -55,7 +56,7 @@ func (s *CostumeServiceServer) Enhance(ctx context.Context, req *pb.EnhanceReque
 			CostumeId:          costume.CostumeId,
 			CharacterId:        cm.CharacterId,
 			SkillfulWeaponType: cm.SkillfulWeaponType,
-		}, campaign.Filter{NowMillis: nowMillis, UserStatus: campaign.TargetUserStatusAll})
+		}, campaign.Filter{Now: timeline.NowFor(user.RegisterDatetime), UserStatus: campaign.TargetUserStatusAll})
 
 		totalExp := int32(0)
 		totalMaterialCount := int32(0)

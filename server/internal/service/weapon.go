@@ -13,6 +13,7 @@ import (
 	"lunar-tear/server/internal/model"
 	"lunar-tear/server/internal/runtime"
 	"lunar-tear/server/internal/store"
+	"lunar-tear/server/internal/timeline"
 )
 
 type WeaponServiceServer struct {
@@ -96,7 +97,7 @@ func (s *WeaponServiceServer) EnhanceByMaterial(ctx context.Context, req *pb.Enh
 			WeaponId:      weapon.WeaponId,
 			WeaponType:    wm.WeaponType,
 			AttributeType: wm.AttributeType,
-		}, campaign.Filter{NowMillis: nowMillis, UserStatus: campaign.TargetUserStatusAll})
+		}, campaign.Filter{Now: timeline.NowFor(user.RegisterDatetime), UserStatus: campaign.TargetUserStatusAll})
 
 		totalExp := int32(0)
 		totalMaterialCount := int32(0)
@@ -708,7 +709,7 @@ func (s *WeaponServiceServer) EnhanceByWeapon(ctx context.Context, req *pb.Enhan
 			WeaponId:      weapon.WeaponId,
 			WeaponType:    wm.WeaponType,
 			AttributeType: wm.AttributeType,
-		}, campaign.Filter{NowMillis: nowMillis, UserStatus: campaign.TargetUserStatusAll})
+		}, campaign.Filter{Now: timeline.NowFor(user.RegisterDatetime), UserStatus: campaign.TargetUserStatusAll})
 
 		totalExp := int32(0)
 		consumedCount := int32(0)

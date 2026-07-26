@@ -12,6 +12,7 @@ import (
 	"lunar-tear/server/internal/model"
 	"lunar-tear/server/internal/runtime"
 	"lunar-tear/server/internal/store"
+	"lunar-tear/server/internal/timeline"
 
 	emptypb "google.golang.org/protobuf/types/known/emptypb"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -43,19 +44,19 @@ func (s *GachaServiceServer) GetGachaList(ctx context.Context, req *pb.GetGachaL
 	catalog := cat.GachaEntries
 	handler := cat.GachaHandler
 	userId := CurrentUserId(ctx, s.users, s.sessions)
-	nowMillis := gametime.NowMillis()
 
 	user, err := s.users.UpdateUser(userId, func(user *store.UserState) {
 		user.EnsureMaps()
-		autoConvertExpiredMedals(user, catalog, handler, nowMillis)
+		autoConvertExpiredMedals(user, catalog, handler)
 	})
 	if err != nil {
 		return nil, fmt.Errorf("update user: %w", err)
 	}
 
+	contentNow := timeline.NowFor(user.RegisterDatetime)
 	gachaList := make([]*pb.Gacha, 0, len(catalog))
 	for _, entry := range catalog {
-		if !gachaActiveAt(entry, nowMillis) {
+		if !gachaActiveAt(entry, contentNow) {
 			continue
 		}
 		if !matchesGachaLabel(req.GachaLabelType, entry.GachaLabelType) {
@@ -74,12 +75,13 @@ func (s *GachaServiceServer) GetGachaList(ctx context.Context, req *pb.GetGachaL
 	}, nil
 }
 
-func autoConvertExpiredMedals(user *store.UserState, catalog []store.GachaCatalogEntry, handler *gacha.GachaHandler, nowMillis int64) {
+func autoConvertExpiredMedals(user *store.UserState, catalog []store.GachaCatalogEntry, handler *gacha.GachaHandler) {
+	contentNow := int64(timeline.NowFor(user.RegisterDatetime))
 	for _, entry := range catalog {
 		if entry.GachaMedalId == 0 || entry.EndDatetime == 0 {
 			continue
 		}
-		if nowMillis < entry.EndDatetime {
+		if contentNow < entry.EndDatetime {
 			continue
 		}
 		bs, exists := user.Gacha.BannerStates[entry.GachaId]
@@ -121,13 +123,13 @@ func (s *GachaServiceServer) GetGacha(ctx context.Context, req *pb.GetGachaReque
 	log.Printf("[GachaService] GetGacha: ids=%v", req.GachaId)
 
 	catalog := s.holder.Get().GachaEntries
-	nowMillis := gametime.NowMillis()
 
 	userId := CurrentUserId(ctx, s.users, s.sessions)
 	user, err := s.users.LoadUser(userId)
 	if err != nil {
 		return nil, fmt.Errorf("snapshot user: %w", err)
 	}
+	contentNow := timeline.NowFor(user.RegisterDatetime)
 
 	byId := make(map[int32]*pb.Gacha, len(req.GachaId))
 	for _, wantedId := range req.GachaId {
@@ -135,7 +137,7 @@ func (s *GachaServiceServer) GetGacha(ctx context.Context, req *pb.GetGachaReque
 			if entry.GachaId != wantedId {
 				continue
 			}
-			if !gachaActiveAt(entry, nowMillis) {
+			if !gachaActiveAt(entry, contentNow) {
 				break
 			}
 			bs := user.Gacha.BannerStates[entry.GachaId]
@@ -406,11 +408,12 @@ func matchesGachaLabel(labels []int32, label int32) bool {
 	return false
 }
 
-func gachaActiveAt(entry store.GachaCatalogEntry, nowMillis int64) bool {
-	if entry.StartDatetime != 0 && nowMillis < entry.StartDatetime {
+// gachaActiveAt reports whether a banner's window is open on the player's clock.
+func gachaActiveAt(entry store.GachaCatalogEntry, now timeline.ContentMillis) bool {
+	if entry.StartDatetime != 0 && int64(now) < entry.StartDatetime {
 		return false
 	}
-	if entry.EndDatetime != 0 && nowMillis >= entry.EndDatetime {
+	if entry.EndDatetime != 0 && int64(now) >= entry.EndDatetime {
 		return false
 	}
 	return true

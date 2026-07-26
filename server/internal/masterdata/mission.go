@@ -7,6 +7,7 @@ import (
 	"lunar-tear/server/internal/gametime"
 	"lunar-tear/server/internal/model"
 	"lunar-tear/server/internal/store"
+	"lunar-tear/server/internal/timeline"
 	"lunar-tear/server/internal/utils"
 )
 
@@ -53,12 +54,12 @@ type MissionCatalog struct {
 	Terms         map[int32]MissionTerm
 }
 
-func (c MissionCatalog) TermActive(termId int32, nowMillis int64) bool {
+func (c MissionCatalog) TermActive(termId int32, now timeline.ContentMillis) bool {
 	t, ok := c.Terms[termId]
 	if !ok {
 		return true
 	}
-	return nowMillis >= t.Start && nowMillis < t.End
+	return int64(now) >= t.Start && int64(now) < t.End
 }
 
 func (c MissionCatalog) DailyMissions() []MissionDef {

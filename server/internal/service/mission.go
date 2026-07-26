@@ -10,6 +10,7 @@ import (
 	"lunar-tear/server/internal/masterdata"
 	"lunar-tear/server/internal/model"
 	"lunar-tear/server/internal/store"
+	"lunar-tear/server/internal/timeline"
 )
 
 type MissionServiceServer struct {
@@ -44,6 +45,8 @@ func (s *MissionServiceServer) ReceiveMissionRewardsById(ctx context.Context, re
 	var received []*pb.MissionReward
 	_, err := s.users.UpdateUser(userId, func(user *store.UserState) {
 		user.EnsureMaps()
+		// Term windows use the player's clock; the timestamps below are real time.
+		contentNow := timeline.NowFor(user.RegisterDatetime)
 		for _, missionId := range req.MissionId {
 			def, ok := cat.ById[missionId]
 			if !ok {
@@ -54,7 +57,7 @@ func (s *MissionServiceServer) ReceiveMissionRewardsById(ctx context.Context, re
 				existing.MissionProgressStatusType >= int32(model.MissionProgressStatusTypeRewardReceived) {
 				continue
 			}
-			if !cat.TermActive(def.TermId, nowMillis) {
+			if !cat.TermActive(def.TermId, contentNow) {
 				continue
 			}
 

@@ -12,6 +12,7 @@ import (
 	"lunar-tear/server/internal/gametime"
 	"lunar-tear/server/internal/runtime"
 	"lunar-tear/server/internal/store/sqlite"
+	"lunar-tear/server/internal/timeline"
 )
 
 const masterDataPath = "assets/release/20240404193219.bin.e"
@@ -30,6 +31,17 @@ func main() {
 
 	if *octoURL == "" {
 		log.Fatalf("--octo-url is required (e.g. http://10.0.2.2:8080)")
+	}
+
+	resolver, err := timeline.FromEnv()
+	if err != nil {
+		log.Fatalf("timeline config: %v", err)
+	}
+	timeline.SetDefault(resolver)
+	if resolver.Mode() == timeline.ModePerPlayer {
+		// Anchor and loop must match the served archive, or the client and server
+		// read different schedules.
+		log.Printf("[timeline] per-player mode: %d cohorts", resolver.CohortCount())
 	}
 
 	holder, err := runtime.NewHolder(masterDataPath)

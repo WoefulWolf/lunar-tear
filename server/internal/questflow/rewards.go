@@ -126,7 +126,7 @@ func (h *QuestHandler) evaluateFinishOutcome(user *store.UserState, questId int3
 		}
 	}
 
-	outcome.DropRewards = h.computeDropRewards(questDef, target, nowMillis)
+	outcome.DropRewards = h.computeDropRewards(user, questDef, target)
 	return outcome
 }
 
@@ -178,11 +178,11 @@ func (h *QuestHandler) grantDropRewards(user *store.UserState, drops []RewardGra
 	}
 }
 
-func (h *QuestHandler) computeDropRewards(questDef masterdata.EntityMQuest, target campaign.QuestTarget, nowMillis int64) []RewardGrant {
+func (h *QuestHandler) computeDropRewards(user *store.UserState, questDef masterdata.EntityMQuest, target campaign.QuestTarget) []RewardGrant {
 	var drops []RewardGrant
 	var dropRate campaign.DropRateMul
 	if h.Campaigns != nil {
-		dropRate = h.Campaigns.QuestDropRate(target, h.campaignFilter(nowMillis))
+		dropRate = h.Campaigns.QuestDropRate(target, h.campaignFilter(user))
 	}
 	if questDef.QuestPickupRewardGroupId != 0 {
 		for _, dropId := range h.PickupRewardIdsByGroupId[questDef.QuestPickupRewardGroupId] {
@@ -195,7 +195,7 @@ func (h *QuestHandler) computeDropRewards(questDef masterdata.EntityMQuest, targ
 			}
 		}
 	}
-	return h.appendBonusDrops(drops, target, nowMillis)
+	return h.appendBonusDrops(user, drops, target)
 }
 
 func (h *QuestHandler) applyExpRewards(user *store.UserState, questId int32, nowMillis int64) {
